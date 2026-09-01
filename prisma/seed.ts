@@ -1,9 +1,10 @@
-const { PrismaBetterSqlite3 } = require("@prisma/adapter-better-sqlite3");
-const { PrismaClient } = require("../generated/prisma/client");
-const bcrypt = require("bcryptjs");
+import { PrismaBetterSqlite3 } from "@prisma/adapter-better-sqlite3";
+import { PrismaClient } from "../generated/prisma/client";
+import bcrypt from "bcryptjs";
 
 const adapter = new PrismaBetterSqlite3({ url: "file:./prisma/dev.db" });
-const prisma = new PrismaClient({ adapter });
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const prisma = new PrismaClient({ adapter: adapter as any });
 
 async function main() {
   console.log("Seeding database with default users from Karnataka...");

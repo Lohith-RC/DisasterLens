@@ -39,7 +39,7 @@ yarn-error.log*
 
 # runtime database
 /data_store.json
-prisma/dev.db
+prisma/dev.db*
 
 # typescript
 *.tsbuildinfo

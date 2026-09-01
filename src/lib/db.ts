@@ -11,7 +11,6 @@ const adapter = new PrismaBetterSqlite3({
 
 export const db =
   globalForPrisma.prisma ||
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   new PrismaClient({ adapter: adapter as any });
 
 if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = db;
