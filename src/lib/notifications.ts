@@ -47,10 +47,3 @@ export function playMessageSound() {
   playTone(600, 0.08, 'sine', 0.15);
   setTimeout(() => playTone(800, 0.08, 'sine', 0.15), 80);
 }
-
-export function playSOSSound() {
-  playTone(440, 0.2, 'square', 0.5);
-  setTimeout(() => playTone(440, 0.2, 'square', 0.5), 300);
-  setTimeout(() => playTone(440, 0.2, 'square', 0.5), 600);
-  setTimeout(() => playTone(523, 0.4, 'square', 0.5), 900);
-}
