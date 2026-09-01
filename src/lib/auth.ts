@@ -13,7 +13,7 @@ export const signToken = (userId: string, role: string) => {
 export const verifyToken = (token: string) => {
     try {
         return jwt.verify(token, JWT_SECRET) as { userId: string, role: string };
-    } catch (e) {
+    } catch {
         return null;
     }
 };

@@ -73,7 +73,7 @@ export function createSSEStream(controller: ReadableStreamDefaultController) {
   controller.enqueue(encoder.encode('retry: 3000\n\n'));
 }
 
-export async function handleSSEConnection(req: Request) {
+export async function handleSSEConnection() {
   const session = await getUserSession();
   if (!session) {
     return new Response('Unauthorized', { status: 401 });

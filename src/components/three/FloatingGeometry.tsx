@@ -17,14 +17,22 @@ export default function FloatingGeometry({ scrollProgress }: FloatingGeometryPro
     const count = 400;
     const positions = new Float32Array(count * 3);
     const colors = new Float32Array(count * 3);
+    const pseudoRandom = (seed: number) => {
+      const x = Math.sin(seed) * 10000;
+      return x - Math.floor(x);
+    };
     for (let i = 0; i < count; i++) {
-      const radius = 8 + Math.random() * 12;
-      const theta = Math.random() * Math.PI * 2;
-      const phi = Math.acos(2 * Math.random() - 1);
+      const radius = 8 + pseudoRandom(i * 1.1) * 12;
+      const theta = pseudoRandom(i * 2.3) * Math.PI * 2;
+      const phi = Math.acos(2 * pseudoRandom(i * 3.7) - 1);
       positions[i * 3] = radius * Math.sin(phi) * Math.cos(theta);
       positions[i * 3 + 1] = radius * Math.sin(phi) * Math.sin(theta);
       positions[i * 3 + 2] = radius * Math.cos(phi);
-      const color = new THREE.Color().setHSL(0.58 + Math.random() * 0.08, 0.8, 0.4 + Math.random() * 0.3);
+      const color = new THREE.Color().setHSL(
+        0.58 + pseudoRandom(i * 4.9) * 0.08,
+        0.8,
+        0.4 + pseudoRandom(i * 5.2) * 0.3
+      );
       colors[i * 3] = color.r;
       colors[i * 3 + 1] = color.g;
       colors[i * 3 + 2] = color.b;

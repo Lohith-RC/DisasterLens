@@ -38,7 +38,7 @@ export async function GET() {
     }
 
     return NextResponse.json({ success: true, message: 'Seeded Indian User/Rescuer Data Successfully' });
-  } catch (error) {
+  } catch {
     return NextResponse.json({ error: 'Failed to seed db' }, { status: 500 });
   }
 }

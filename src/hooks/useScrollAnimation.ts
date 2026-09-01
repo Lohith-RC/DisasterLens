@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 
@@ -47,7 +47,7 @@ export function useSectionReveal(ref: React.RefObject<HTMLElement | null>, optio
     );
 
     return () => { anim.kill(); };
-  }, [ref]);
+  }, [ref, options?.start]);
 }
 
 export function useParallax(ref: React.RefObject<HTMLElement | null>, speed: number = 0.3) {

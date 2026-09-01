@@ -1,8 +1,7 @@
 'use client';
-import { Suspense, useRef } from 'react';
+import { Suspense } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
-import { Environment, Lightformer } from '@react-three/drei';
-import * as THREE from 'three';
+import { Environment } from '@react-three/drei';
 import FloatingGeometry from './FloatingGeometry';
 
 interface Scene3DProps {
