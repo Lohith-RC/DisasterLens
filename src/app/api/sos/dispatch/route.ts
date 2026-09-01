@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { getUserSession } from '@/lib/auth';
 import { dispatchSchema } from '@/lib/validations';
-import { broadcastToRole } from '@/lib/sse';
+import { broadcastToRole, broadcastToUser } from '@/lib/sse';
 
 export async function POST(req: Request) {
   try {
@@ -31,32 +31,24 @@ export async function POST(req: Request) {
 
     const rescuer = await db.user.findUnique({ where: { id: session.userId } });
 
-    if (action === 'DISPATCHED') {
-      await db.message.create({
-        data: {
-          senderId: session.userId,
-          senderName: rescuer?.name || 'Rescue Command',
-          senderRole: 'RESCUER',
-          recipientId: signal.userId,
-          signalId,
-          content: 'Rescue unit has been dispatched to your location. Hold on, help is en route. Keep your device powered on.',
-        },
-      });
-      broadcastToRole('message_update', {}, 'VICTIM');
-    } else if (action === 'RESOLVED') {
-      await db.message.create({
-        data: {
-          senderId: session.userId,
-          senderName: rescuer?.name || 'Rescue Command',
-          senderRole: 'RESCUER',
-          recipientId: signal.userId,
-          signalId,
-          content: 'Your SOS has been resolved. Rescue operation marked as complete. Stay safe.',
-        },
-      });
-      broadcastToRole('message_update', {}, 'VICTIM');
-    }
+    const content =
+      action === 'DISPATCHED'
+        ? 'Rescue unit has been dispatched to your location. Hold on, help is en route. Keep your device powered on.'
+        : 'Your SOS has been resolved. Rescue operation marked as complete. Stay safe.';
 
+    const message = await db.message.create({
+      data: {
+        senderId: session.userId,
+        senderName: rescuer?.name || 'Rescue Command',
+        senderRole: 'RESCUER',
+        recipientId: signal.userId,
+        signalId,
+        content,
+      },
+    });
+
+    // Notify targeted victim and all rescuers
+    broadcastToUser('message_update', { messages: [message] }, signal.userId);
     broadcastToRole('signal_update', { signalId, status: action }, 'RESCUER');
 
     return NextResponse.json({ success: true, status: action });

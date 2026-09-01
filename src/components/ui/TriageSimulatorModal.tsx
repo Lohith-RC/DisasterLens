@@ -1,5 +1,6 @@
 'use client';
 import { useState, useEffect } from 'react';
+import { evaluateTriagePriority } from '@/lib/triage';
 import { Button } from './Button';
 
 interface TriageSimulatorModalProps {
@@ -25,93 +26,22 @@ export function TriageSimulatorModal({ isOpen, onClose }: TriageSimulatorModalPr
 
   if (!isOpen) return null;
 
-  // Compute MCDM score in real-time
-  let score = 0;
-  const reasons: string[] = [];
+  // Compute MCDM score in real-time using unified triage evaluation
+  const { score, rank, reasons } = evaluateTriagePriority(
+    disasterType,
+    severity,
+    battery,
+    groupSize,
+    environment
+  );
 
-  if (battery < 10) {
-    score += 25;
-    reasons.push(`CRITICAL battery (${battery}%) - imminent communication blackout.`);
-  } else if (battery < 20) {
-    score += 20;
-    reasons.push(`Low battery (${battery}%) - estimated 15-30min survival window.`);
-  } else if (battery < 40) {
-    score += 10;
-    reasons.push(`Battery at ${battery}% - monitoring drain curve.`);
-  }
-
-  const typeScores: Record<string, number> = {
-    Trapped: 30,
-    Earthquake: 30,
-    Fire: 28,
-    Chemical: 28,
-    Flood: 22,
-    Medical: 20,
+  const rankStyles: Record<string, { rankColor: string; scoreColor: string }> = {
+    Critical: { rankColor: 'bg-red-500/20 text-red-400 border-red-500/40 shadow-lg shadow-red-500/20', scoreColor: 'text-red-400' },
+    High: { rankColor: 'bg-orange-500/20 text-orange-400 border-orange-500/40', scoreColor: 'text-orange-400' },
+    Medium: { rankColor: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/40', scoreColor: 'text-yellow-400' },
+    Low: { rankColor: 'bg-slate-700 text-slate-200 border-slate-600', scoreColor: 'text-slate-300' },
   };
-
-  const typeMessages: Record<string, string> = {
-    Trapped: 'Victim physically trapped under structural collapse.',
-    Earthquake: 'Earthquake aftermath with high aftershock risk.',
-    Fire: 'Active fire/smoke hazard with rapid spread probability.',
-    Chemical: 'HAZMAT chemical exposure detected.',
-    Flood: 'Rapidly rising water level with submersion risk.',
-    Medical: 'Requires urgent paramedic trauma intervention.',
-  };
-
-  score += typeScores[disasterType] || 15;
-  reasons.push(typeMessages[disasterType] || `Emergency type: ${disasterType}`);
-
-  if (severity === 'Severe') {
-    score += 20;
-    reasons.push('Condition: CRITICAL - Acute life threat.');
-  } else if (severity === 'Moderate') {
-    score += 10;
-    reasons.push('Condition: MODERATE - Urgent medical assistance needed.');
-  } else {
-    score += 3;
-    reasons.push('Condition: MINOR - Stable vitals.');
-  }
-
-  if (groupSize > 5) {
-    score += 15;
-    reasons.push(`Mass casualty protocol: ${groupSize} individuals.`);
-  } else if (groupSize > 2) {
-    score += 8;
-    reasons.push(`Multiple casualties: ${groupSize} individuals.`);
-  } else if (groupSize > 1) {
-    score += 4;
-    reasons.push(`${groupSize} victims reported at location.`);
-  }
-
-  if (environment === 'Night') {
-    score += 8;
-    reasons.push('Nighttime darkness complicating search-and-rescue.');
-  } else if (environment === 'Rain') {
-    score += 6;
-    reasons.push('Torrential rain and flooding risk.');
-  } else if (environment === 'Extreme_Heat') {
-    score += 5;
-    reasons.push('Extreme heat exhaustion / dehydration vulnerability.');
-  }
-
-  score = Math.min(score, 100);
-
-  let rank = 'Low';
-  let rankColor = 'bg-slate-700 text-slate-200 border-slate-600';
-  let scoreColor = 'text-slate-300';
-  if (score >= 70) {
-    rank = 'Critical';
-    rankColor = 'bg-red-500/20 text-red-400 border-red-500/40 shadow-lg shadow-red-500/20';
-    scoreColor = 'text-red-400';
-  } else if (score >= 45) {
-    rank = 'High';
-    rankColor = 'bg-orange-500/20 text-orange-400 border-orange-500/40';
-    scoreColor = 'text-orange-400';
-  } else if (score >= 25) {
-    rank = 'Medium';
-    rankColor = 'bg-yellow-500/20 text-yellow-400 border-yellow-500/40';
-    scoreColor = 'text-yellow-400';
-  }
+  const { rankColor, scoreColor } = rankStyles[rank] || rankStyles.Low;
 
   return (
     <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">

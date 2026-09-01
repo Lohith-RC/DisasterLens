@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { getUserSession } from '@/lib/auth';
 import { messageSendSchema } from '@/lib/validations';
-import { broadcastToRole } from '@/lib/sse';
+import { broadcastToRole, broadcastToUser } from '@/lib/sse';
 
 export async function POST(req: Request) {
   try {
@@ -31,9 +31,12 @@ export async function POST(req: Request) {
       },
     });
 
+    // Broadcast to Rescuer Mission Terminal
     broadcastToRole('message_update', { messages: [message] }, 'RESCUER');
+
+    // Secure targeted dispatch: only deliver private victim message to the intended recipient
     if (recipientId) {
-      broadcastToRole('message_update', { messages: [message] }, 'VICTIM');
+      broadcastToUser('message_update', { messages: [message] }, recipientId);
     }
 
     return NextResponse.json({ success: true, message });

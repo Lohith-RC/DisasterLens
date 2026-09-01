@@ -11,20 +11,25 @@ interface SSEClient {
 }
 
 const clients = new Map<string, SSEClient>();
-const STALE_MS = 60_000;
+const encoder = new TextEncoder();
+const PING_PAYLOAD = encoder.encode(': ping\n\n');
 
 let sweepInterval: ReturnType<typeof setInterval> | null = null;
 function ensureSweep() {
   if (sweepInterval) return;
+  // Sweep every 25s: send keepalive ping and purge dead sockets
   sweepInterval = setInterval(() => {
     const now = Date.now();
     for (const [id, c] of clients) {
-      if (now - c.lastSeen > STALE_MS) {
+      try {
+        c.controller.enqueue(PING_PAYLOAD);
+        c.lastSeen = now;
+      } catch {
         try { c.controller.close(); } catch {}
         clients.delete(id);
       }
     }
-  }, 30_000);
+  }, 25_000);
 }
 
 export function addClient(id: string, client: Omit<SSEClient, 'lastSeen'>) {
@@ -40,26 +45,18 @@ function touch(id: string) {
   if (c) c.lastSeen = Date.now();
 }
 
-export async function broadcast(type: EventType, data: unknown) {
+/**
+ * Unified pre-encoded broadcaster.
+ * Encodes payload once before iterating over matching client sockets.
+ */
+function broadcastInternal(type: EventType, data: unknown, filter?: (c: SSEClient) => boolean) {
   const payload = `data: ${JSON.stringify({ type, ...(data as object) })}\n\n`;
-  const encoder = new TextEncoder();
-  for (const [id, client] of clients) {
-    try {
-      client.controller.enqueue(encoder.encode(payload));
-      touch(id);
-    } catch {
-      clients.delete(id);
-    }
-  }
-}
+  const encoded = encoder.encode(payload);
 
-export async function broadcastToRole(type: EventType, data: unknown, role: string) {
-  const payload = `data: ${JSON.stringify({ type, ...(data as object) })}\n\n`;
-  const encoder = new TextEncoder();
   for (const [id, client] of clients) {
-    if (client.role === role) {
+    if (!filter || filter(client)) {
       try {
-        client.controller.enqueue(encoder.encode(payload));
+        client.controller.enqueue(encoded);
         touch(id);
       } catch {
         clients.delete(id);
@@ -68,8 +65,19 @@ export async function broadcastToRole(type: EventType, data: unknown, role: stri
   }
 }
 
+export async function broadcast(type: EventType, data: unknown) {
+  broadcastInternal(type, data);
+}
+
+export async function broadcastToRole(type: EventType, data: unknown, role: string) {
+  broadcastInternal(type, data, (c) => c.role === role);
+}
+
+export async function broadcastToUser(type: EventType, data: unknown, userId: string) {
+  broadcastInternal(type, data, (c) => c.userId === userId);
+}
+
 export function createSSEStream(controller: ReadableStreamDefaultController) {
-  const encoder = new TextEncoder();
   controller.enqueue(encoder.encode('retry: 3000\n\n'));
 }
 
