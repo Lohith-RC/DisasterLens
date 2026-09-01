@@ -1,0 +1,53 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+model User {
+  id           String       @id @default(cuid())
+  name         String
+  role         String 
+  password     String
+  location_lat Float?
+  location_lng Float?
+  signals      SOS_Signal[]
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+}
+
+model SOS_Signal {
+  id              String    @id @default(cuid())
+  userId          String
+  user            User      @relation(fields: [userId], references: [id])
+  disaster_type   String
+  injury_severity String
+  battery_level   Int
+  status          String    @default("PENDING")
+  priority_score  Float?
+  ai_explanation  String?
+  location_lat    Float?
+  location_lng    Float?
+  group_size      Int?
+  environment     String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  messages        Message[]
+}
+
+model Message {
+  id          String      @id @default(cuid())
+  senderId    String
+  senderName  String
+  senderRole  String
+  recipientId String?
+  signalId    String?
+  signal      SOS_Signal? @relation(fields: [signalId], references: [id])
+  content     String
+  read        Boolean     @default(false)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+}
