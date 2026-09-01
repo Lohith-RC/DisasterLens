@@ -14,15 +14,17 @@ import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
 import { playNewSignalSound, playDispatchSound, playResolveSound, playMessageSound } from '@/lib/notifications';
 import { calculateDistanceKm, calculateBearing } from '@/lib/geo';
 import { announceTriage, announceDispatch, announceResolved } from '@/lib/voice';
+import { DEFAULT_COORDS, FLEET_BEACON_INTERVAL_MS } from '@/lib/constants';
 import type { FleetUnit } from '@/lib/sse';
+import type { SOSSignal, ChatMessage } from '@/types/domain';
 
 const MapComponent = dynamic(() => import('@/components/Map'), { ssr: false });
 
 export default function RescuerDashboard() {
   const router = useRouter();
-  const [signals, setSignals] = useState<any[]>([]);
-  const [activeSignal, setActiveSignal] = useState<any>(null);
-  const [messages, setMessages] = useState<any[]>([]);
+  const [signals, setSignals] = useState<SOSSignal[]>([]);
+  const [activeSignal, setActiveSignal] = useState<SOSSignal | null>(null);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const [tab, setTab] = useState<'triage' | 'comms'>('triage');
   const [actionLoading, setActionLoading] = useState('');
@@ -42,7 +44,7 @@ export default function RescuerDashboard() {
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'CRITICAL' | 'PENDING' | 'DISPATCHED'>('ALL');
 
   // Rescuer Unit Position
-  const [rescuerPos, setRescuerPos] = useState<[number, number]>([12.9716, 77.5946]);
+  const [rescuerPos, setRescuerPos] = useState<[number, number]>(DEFAULT_COORDS);
   // Fleet registry: other rescuer units on the field
   const [fleet, setFleet] = useState<FleetUnit[]>([]);
   const rescuerName = useRef('Rescue Unit');
@@ -56,23 +58,10 @@ export default function RescuerDashboard() {
     setToast({ msg, type });
   }, []);
 
-  // Detect Rescuer live GPS position on load + start fleet beacon
-  useEffect(() => {
-    if (!('geolocation' in navigator)) return;
-
+  const sendBeacon = useCallback(() => {
+    if (typeof navigator === 'undefined' || !('geolocation' in navigator)) return;
     navigator.geolocation.getCurrentPosition(
       (pos) => {
-        const lat = pos.coords.latitude;
-        const lng = pos.coords.longitude;
-        setRescuerPos([lat, lng]);
-      },
-      () => { /* Default to Bangalore HQ if denied */ },
-      { enableHighAccuracy: true, timeout: 5000 }
-    );
-
-    // Fleet beacon: broadcast position every 10 seconds
-    const beaconInterval = setInterval(() => {
-      navigator.geolocation.getCurrentPosition((pos) => {
         const lat = pos.coords.latitude;
         const lng = pos.coords.longitude;
         setRescuerPos([lat, lng]);
@@ -81,11 +70,31 @@ export default function RescuerDashboard() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ lat, lng, name: rescuerName.current }),
         }).catch(() => {});
-      }, () => {}, { timeout: 4000 });
-    }, 10_000);
+      },
+      () => {},
+      { timeout: 4000 }
+    );
+  }, []);
+
+  // Detect Rescuer live GPS position on load + start fleet beacon
+  useEffect(() => {
+    if (typeof navigator === 'undefined' || !('geolocation' in navigator)) return;
+
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const lat = pos.coords.latitude;
+        const lng = pos.coords.longitude;
+        setRescuerPos([lat, lng]);
+      },
+      () => { /* Default to HQ coords if denied */ },
+      { enableHighAccuracy: true, timeout: 5000 }
+    );
+
+    // Fleet beacon: broadcast position every 10s (FLEET_BEACON_INTERVAL_MS)
+    const beaconInterval = setInterval(sendBeacon, FLEET_BEACON_INTERVAL_MS);
 
     return () => clearInterval(beaconInterval);
-  }, []);
+  }, [sendBeacon]);
 
   useEffect(() => {
     const handler = (e: CustomEvent<ToastData>) => showToast(e.detail.msg, e.detail.type);
@@ -101,6 +110,10 @@ export default function RescuerDashboard() {
   const fetchSignals = useCallback(async () => {
     try {
       const res = await fetch('/api/sos/stream');
+      if (res.status === 401) {
+        router.push('/login');
+        return;
+      }
       const data = await res.json();
       if (data.signals) {
         if (data.signals.length > previousSignalCount.current && previousSignalCount.current > 0 && !audioMuted) {
@@ -123,7 +136,7 @@ export default function RescuerDashboard() {
           setResolvedTotal(data.resolvedCount);
         }
         if (activeSignal) {
-          const updated = data.signals.find((s: any) => s.id === activeSignal.id);
+          const updated = data.signals.find((s: SOSSignal) => s.id === activeSignal.id);
           if (updated) setActiveSignal(updated);
           else setActiveSignal(null);
         }
@@ -133,12 +146,15 @@ export default function RescuerDashboard() {
     } finally {
       setLoadingSignals(false);
     }
-  }, [activeSignal, audioMuted, rescuerPos]);
-
+  }, [activeSignal, audioMuted, rescuerPos, router]);
 
   const fetchMessages = useCallback(async () => {
     try {
       const res = await fetch('/api/messages/stream');
+      if (res.status === 401) {
+        router.push('/login');
+        return;
+      }
       const data = await res.json();
       if (data.messages) setMessages(data.messages);
     } catch (err) {
@@ -146,7 +162,7 @@ export default function RescuerDashboard() {
     } finally {
       setLoadingMessages(false);
     }
-  }, []);
+  }, [router]);
 
   // Real-Time Server-Sent Events (SSE) stream setup
   useEffect(() => {
@@ -169,12 +185,17 @@ export default function RescuerDashboard() {
             fetchSignals();
           } else if (payload.type === 'message_update') {
             fetchMessages();
-          } else if (payload.type === 'fleet_update' && Array.isArray(payload.fleet)) {
-            setFleet((prev) => {
-              const map = new Map(prev.map((u) => [u.userId, u]));
-              for (const u of payload.fleet) map.set(u.userId, u);
-              return [...map.values()];
-            });
+          } else if (payload.type === 'fleet_update') {
+            if (payload.fleet_request) {
+              sendBeacon();
+            }
+            if (Array.isArray(payload.fleet)) {
+              setFleet((prev) => {
+                const map = new Map(prev.map((u) => [u.userId, u]));
+                for (const u of payload.fleet) map.set(u.userId, u);
+                return [...map.values()];
+              });
+            }
           }
         } catch {
           // ignore heartbeat or parse issue
@@ -198,7 +219,7 @@ export default function RescuerDashboard() {
       if (es) es.close();
       clearInterval(fallbackInterval);
     };
-  }, [fetchSignals, fetchMessages]);
+  }, [fetchSignals, fetchMessages, sendBeacon]);
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });

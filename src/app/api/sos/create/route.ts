@@ -4,12 +4,22 @@ import { getUserSession } from '@/lib/auth';
 import { sosCreateSchema } from '@/lib/validations';
 import { broadcastToRole } from '@/lib/sse';
 import { evaluateTriagePriority } from '@/lib/triage';
+import { checkRateLimit } from '@/lib/rateLimit';
 
 export async function POST(req: Request) {
   try {
     const session = await getUserSession();
     if (!session) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    // Fix #3: Rate-limit SOS submissions per authenticated user to prevent signal queue flooding
+    const { allowed, retryAfterMs } = checkRateLimit(`sos:${session.userId}`);
+    if (!allowed) {
+      return NextResponse.json(
+        { error: `Too many SOS transmissions. Retry in ${Math.ceil(retryAfterMs / 60000)} minutes.` },
+        { status: 429 }
+      );
     }
 
     const body = await req.json();

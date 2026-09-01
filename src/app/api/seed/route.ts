@@ -2,10 +2,29 @@ import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import bcrypt from 'bcryptjs';
 
-export async function GET() {
+/**
+ * Fix #2: Seed endpoint protected by:
+ * 1. NODE_ENV !== 'development' guard (runtime, not build-time assumption)
+ * 2. Mandatory `x-seed-secret` header matching SEED_SECRET env var
+ *
+ * Without a matching secret header, even `development` builds reject the request.
+ * This prevents accidental DB wipes if NODE_ENV is misconfigured in production.
+ */
+export async function GET(req: Request) {
   if (process.env.NODE_ENV !== 'development') {
     return NextResponse.json({ error: 'Not available in production' }, { status: 403 });
   }
+
+  const seedSecret = process.env.SEED_SECRET;
+  if (!seedSecret) {
+    return NextResponse.json({ error: 'SEED_SECRET not configured' }, { status: 503 });
+  }
+
+  const providedSecret = req.headers.get('x-seed-secret');
+  if (providedSecret !== seedSecret) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  }
+
   try {
     await db.sOS_Signal.deleteMany();
     await db.message.deleteMany();

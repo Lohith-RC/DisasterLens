@@ -256,7 +256,7 @@ export type SOS_SignalGroupByOutputType = {
   injury_severity: string
   battery_level: number
   status: string
-  priority_score: number | null
+  priority_score: number
   ai_explanation: string | null
   location_lat: number | null
   location_lng: number | null
@@ -271,7 +271,7 @@ export type SOS_SignalGroupByOutputType = {
   _max: SOS_SignalMaxAggregateOutputType | null
 }
 
-type GetSOS_SignalGroupByPayload<T extends SOS_SignalGroupByArgs> = Prisma.PrismaPromise<
+export type GetSOS_SignalGroupByPayload<T extends SOS_SignalGroupByArgs> = Prisma.PrismaPromise<
   Array<
     Prisma.PickEnumerable<SOS_SignalGroupByOutputType, T['by']> &
       {
@@ -296,7 +296,7 @@ export type SOS_SignalWhereInput = {
   injury_severity?: Prisma.StringFilter<"SOS_Signal"> | string
   battery_level?: Prisma.IntFilter<"SOS_Signal"> | number
   status?: Prisma.StringFilter<"SOS_Signal"> | string
-  priority_score?: Prisma.FloatNullableFilter<"SOS_Signal"> | number | null
+  priority_score?: Prisma.FloatFilter<"SOS_Signal"> | number
   ai_explanation?: Prisma.StringNullableFilter<"SOS_Signal"> | string | null
   location_lat?: Prisma.FloatNullableFilter<"SOS_Signal"> | number | null
   location_lng?: Prisma.FloatNullableFilter<"SOS_Signal"> | number | null
@@ -315,7 +315,7 @@ export type SOS_SignalOrderByWithRelationInput = {
   injury_severity?: Prisma.SortOrder
   battery_level?: Prisma.SortOrder
   status?: Prisma.SortOrder
-  priority_score?: Prisma.SortOrderInput | Prisma.SortOrder
+  priority_score?: Prisma.SortOrder
   ai_explanation?: Prisma.SortOrderInput | Prisma.SortOrder
   location_lat?: Prisma.SortOrderInput | Prisma.SortOrder
   location_lng?: Prisma.SortOrderInput | Prisma.SortOrder
@@ -337,7 +337,7 @@ export type SOS_SignalWhereUniqueInput = Prisma.AtLeast<{
   injury_severity?: Prisma.StringFilter<"SOS_Signal"> | string
   battery_level?: Prisma.IntFilter<"SOS_Signal"> | number
   status?: Prisma.StringFilter<"SOS_Signal"> | string
-  priority_score?: Prisma.FloatNullableFilter<"SOS_Signal"> | number | null
+  priority_score?: Prisma.FloatFilter<"SOS_Signal"> | number
   ai_explanation?: Prisma.StringNullableFilter<"SOS_Signal"> | string | null
   location_lat?: Prisma.FloatNullableFilter<"SOS_Signal"> | number | null
   location_lng?: Prisma.FloatNullableFilter<"SOS_Signal"> | number | null
@@ -356,7 +356,7 @@ export type SOS_SignalOrderByWithAggregationInput = {
   injury_severity?: Prisma.SortOrder
   battery_level?: Prisma.SortOrder
   status?: Prisma.SortOrder
-  priority_score?: Prisma.SortOrderInput | Prisma.SortOrder
+  priority_score?: Prisma.SortOrder
   ai_explanation?: Prisma.SortOrderInput | Prisma.SortOrder
   location_lat?: Prisma.SortOrderInput | Prisma.SortOrder
   location_lng?: Prisma.SortOrderInput | Prisma.SortOrder
@@ -381,7 +381,7 @@ export type SOS_SignalScalarWhereWithAggregatesInput = {
   injury_severity?: Prisma.StringWithAggregatesFilter<"SOS_Signal"> | string
   battery_level?: Prisma.IntWithAggregatesFilter<"SOS_Signal"> | number
   status?: Prisma.StringWithAggregatesFilter<"SOS_Signal"> | string
-  priority_score?: Prisma.FloatNullableWithAggregatesFilter<"SOS_Signal"> | number | null
+  priority_score?: Prisma.FloatWithAggregatesFilter<"SOS_Signal"> | number
   ai_explanation?: Prisma.StringNullableWithAggregatesFilter<"SOS_Signal"> | string | null
   location_lat?: Prisma.FloatNullableWithAggregatesFilter<"SOS_Signal"> | number | null
   location_lng?: Prisma.FloatNullableWithAggregatesFilter<"SOS_Signal"> | number | null
@@ -397,7 +397,7 @@ export type SOS_SignalCreateInput = {
   injury_severity: string
   battery_level: number
   status?: string
-  priority_score?: number | null
+  priority_score?: number
   ai_explanation?: string | null
   location_lat?: number | null
   location_lng?: number | null
@@ -416,7 +416,7 @@ export type SOS_SignalUncheckedCreateInput = {
   injury_severity: string
   battery_level: number
   status?: string
-  priority_score?: number | null
+  priority_score?: number
   ai_explanation?: string | null
   location_lat?: number | null
   location_lng?: number | null
@@ -433,7 +433,7 @@ export type SOS_SignalUpdateInput = {
   injury_severity?: Prisma.StringFieldUpdateOperationsInput | string
   battery_level?: Prisma.IntFieldUpdateOperationsInput | number
   status?: Prisma.StringFieldUpdateOperationsInput | string
-  priority_score?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  priority_score?: Prisma.FloatFieldUpdateOperationsInput | number
   ai_explanation?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   location_lat?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
   location_lng?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
@@ -452,7 +452,7 @@ export type SOS_SignalUncheckedUpdateInput = {
   injury_severity?: Prisma.StringFieldUpdateOperationsInput | string
   battery_level?: Prisma.IntFieldUpdateOperationsInput | number
   status?: Prisma.StringFieldUpdateOperationsInput | string
-  priority_score?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  priority_score?: Prisma.FloatFieldUpdateOperationsInput | number
   ai_explanation?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   location_lat?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
   location_lng?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
@@ -470,7 +470,7 @@ export type SOS_SignalCreateManyInput = {
   injury_severity: string
   battery_level: number
   status?: string
-  priority_score?: number | null
+  priority_score?: number
   ai_explanation?: string | null
   location_lat?: number | null
   location_lng?: number | null
@@ -486,7 +486,7 @@ export type SOS_SignalUpdateManyMutationInput = {
   injury_severity?: Prisma.StringFieldUpdateOperationsInput | string
   battery_level?: Prisma.IntFieldUpdateOperationsInput | number
   status?: Prisma.StringFieldUpdateOperationsInput | string
-  priority_score?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  priority_score?: Prisma.FloatFieldUpdateOperationsInput | number
   ai_explanation?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   location_lat?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
   location_lng?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
@@ -503,7 +503,7 @@ export type SOS_SignalUncheckedUpdateManyInput = {
   injury_severity?: Prisma.StringFieldUpdateOperationsInput | string
   battery_level?: Prisma.IntFieldUpdateOperationsInput | number
   status?: Prisma.StringFieldUpdateOperationsInput | string
-  priority_score?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  priority_score?: Prisma.FloatFieldUpdateOperationsInput | number
   ai_explanation?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   location_lat?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
   location_lng?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
@@ -645,6 +645,14 @@ export type IntFieldUpdateOperationsInput = {
   divide?: number
 }
 
+export type FloatFieldUpdateOperationsInput = {
+  set?: number
+  increment?: number
+  decrement?: number
+  multiply?: number
+  divide?: number
+}
+
 export type NullableStringFieldUpdateOperationsInput = {
   set?: string | null
 }
@@ -679,7 +687,7 @@ export type SOS_SignalCreateWithoutUserInput = {
   injury_severity: string
   battery_level: number
   status?: string
-  priority_score?: number | null
+  priority_score?: number
   ai_explanation?: string | null
   location_lat?: number | null
   location_lng?: number | null
@@ -696,7 +704,7 @@ export type SOS_SignalUncheckedCreateWithoutUserInput = {
   injury_severity: string
   battery_level: number
   status?: string
-  priority_score?: number | null
+  priority_score?: number
   ai_explanation?: string | null
   location_lat?: number | null
   location_lng?: number | null
@@ -742,7 +750,7 @@ export type SOS_SignalScalarWhereInput = {
   injury_severity?: Prisma.StringFilter<"SOS_Signal"> | string
   battery_level?: Prisma.IntFilter<"SOS_Signal"> | number
   status?: Prisma.StringFilter<"SOS_Signal"> | string
-  priority_score?: Prisma.FloatNullableFilter<"SOS_Signal"> | number | null
+  priority_score?: Prisma.FloatFilter<"SOS_Signal"> | number
   ai_explanation?: Prisma.StringNullableFilter<"SOS_Signal"> | string | null
   location_lat?: Prisma.FloatNullableFilter<"SOS_Signal"> | number | null
   location_lng?: Prisma.FloatNullableFilter<"SOS_Signal"> | number | null
@@ -758,7 +766,7 @@ export type SOS_SignalCreateWithoutMessagesInput = {
   injury_severity: string
   battery_level: number
   status?: string
-  priority_score?: number | null
+  priority_score?: number
   ai_explanation?: string | null
   location_lat?: number | null
   location_lng?: number | null
@@ -776,7 +784,7 @@ export type SOS_SignalUncheckedCreateWithoutMessagesInput = {
   injury_severity: string
   battery_level: number
   status?: string
-  priority_score?: number | null
+  priority_score?: number
   ai_explanation?: string | null
   location_lat?: number | null
   location_lng?: number | null
@@ -808,7 +816,7 @@ export type SOS_SignalUpdateWithoutMessagesInput = {
   injury_severity?: Prisma.StringFieldUpdateOperationsInput | string
   battery_level?: Prisma.IntFieldUpdateOperationsInput | number
   status?: Prisma.StringFieldUpdateOperationsInput | string
-  priority_score?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  priority_score?: Prisma.FloatFieldUpdateOperationsInput | number
   ai_explanation?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   location_lat?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
   location_lng?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
@@ -826,7 +834,7 @@ export type SOS_SignalUncheckedUpdateWithoutMessagesInput = {
   injury_severity?: Prisma.StringFieldUpdateOperationsInput | string
   battery_level?: Prisma.IntFieldUpdateOperationsInput | number
   status?: Prisma.StringFieldUpdateOperationsInput | string
-  priority_score?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  priority_score?: Prisma.FloatFieldUpdateOperationsInput | number
   ai_explanation?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   location_lat?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
   location_lng?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
@@ -842,7 +850,7 @@ export type SOS_SignalCreateManyUserInput = {
   injury_severity: string
   battery_level: number
   status?: string
-  priority_score?: number | null
+  priority_score?: number
   ai_explanation?: string | null
   location_lat?: number | null
   location_lng?: number | null
@@ -858,7 +866,7 @@ export type SOS_SignalUpdateWithoutUserInput = {
   injury_severity?: Prisma.StringFieldUpdateOperationsInput | string
   battery_level?: Prisma.IntFieldUpdateOperationsInput | number
   status?: Prisma.StringFieldUpdateOperationsInput | string
-  priority_score?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  priority_score?: Prisma.FloatFieldUpdateOperationsInput | number
   ai_explanation?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   location_lat?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
   location_lng?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
@@ -875,7 +883,7 @@ export type SOS_SignalUncheckedUpdateWithoutUserInput = {
   injury_severity?: Prisma.StringFieldUpdateOperationsInput | string
   battery_level?: Prisma.IntFieldUpdateOperationsInput | number
   status?: Prisma.StringFieldUpdateOperationsInput | string
-  priority_score?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  priority_score?: Prisma.FloatFieldUpdateOperationsInput | number
   ai_explanation?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   location_lat?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
   location_lng?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
@@ -892,7 +900,7 @@ export type SOS_SignalUncheckedUpdateManyWithoutUserInput = {
   injury_severity?: Prisma.StringFieldUpdateOperationsInput | string
   battery_level?: Prisma.IntFieldUpdateOperationsInput | number
   status?: Prisma.StringFieldUpdateOperationsInput | string
-  priority_score?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  priority_score?: Prisma.FloatFieldUpdateOperationsInput | number
   ai_explanation?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   location_lat?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
   location_lng?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
@@ -1032,7 +1040,7 @@ export type $SOS_SignalPayload<ExtArgs extends runtime.Types.Extensions.Internal
     injury_severity: string
     battery_level: number
     status: string
-    priority_score: number | null
+    priority_score: number
     ai_explanation: string | null
     location_lat: number | null
     location_lng: number | null

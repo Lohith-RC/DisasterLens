@@ -1,4 +1,5 @@
 import { getUserSession } from './auth';
+import { SSE_PING_INTERVAL_MS, FLEET_STALE_MS } from './constants';
 
 type EventType = 'signal_update' | 'message_update' | 'fleet_update';
 
@@ -24,7 +25,6 @@ const PING_PAYLOAD = encoder.encode(': ping\n\n');
 
 // In-memory fleet registry: ephemeral rescuer GPS positions (no DB needed)
 const fleetRegistry = new Map<string, FleetUnit>();
-const FLEET_STALE_MS = 60_000;
 
 export function updateFleetPosition(unit: FleetUnit) {
   fleetRegistry.set(unit.userId, unit);
@@ -54,7 +54,7 @@ function ensureSweep() {
         clients.delete(id);
       }
     }
-  }, 25_000);
+  }, SSE_PING_INTERVAL_MS);
 }
 
 export function addClient(id: string, client: Omit<SSEClient, 'lastSeen'>) {
@@ -106,6 +106,11 @@ export function createSSEStream(controller: ReadableStreamDefaultController) {
   controller.enqueue(encoder.encode('retry: 3000\n\n'));
 }
 
+/**
+ * Fix #5/#16: On new client connect, deliver fleet snapshot immediately so
+ * the rescuer map is populated without waiting for the next 10s beacon cycle.
+ * Also emits a 'fleet_request' hint so active rescuers re-beacon promptly.
+ */
 export async function handleSSEConnection() {
   const session = await getUserSession();
   if (!session) {
@@ -121,11 +126,17 @@ export async function handleSSEConnection() {
       createSSEStream(controller);
       addClient(clientId, { id: clientId, controller, role: session.role, userId: session.userId });
 
-      // Send current fleet snapshot to new connection
+      // Deliver current fleet snapshot to new connection
       const fleet = getFleetPositions();
       if (fleet.length > 0) {
         const payload = `data: ${JSON.stringify({ type: 'fleet_update', fleet })}\n\n`;
         try { controller.enqueue(encoder.encode(payload)); } catch {}
+      }
+
+      // Fix #5: Ask all connected rescuers to re-beacon immediately so the new
+      // client gets a fresh fleet snapshot on reconnect (handles server restart gap)
+      if (session.role === 'RESCUER') {
+        broadcastInternal('fleet_update', { fleet_request: true }, (c) => c.role === 'RESCUER' && c.id !== clientId);
       }
     },
     cancel() {

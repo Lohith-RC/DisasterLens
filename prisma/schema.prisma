@@ -9,8 +9,8 @@ datasource db {
 
 model User {
   id           String       @id @default(cuid())
-  name         String
-  role         String 
+  name         String       @unique    // Fix #6: enforce username uniqueness at DB level
+  role         String
   password     String
   location_lat Float?
   location_lng Float?
@@ -27,7 +27,7 @@ model SOS_Signal {
   injury_severity String
   battery_level   Int
   status          String    @default("PENDING")
-  priority_score  Float?
+  priority_score  Float     @default(0)   // Fix #9: non-nullable with default; prevents NULL in sorts/heatmap
   ai_explanation  String?
   location_lat    Float?
   location_lng    Float?

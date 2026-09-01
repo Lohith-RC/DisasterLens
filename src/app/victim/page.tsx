@@ -7,6 +7,8 @@ import { Input, Select } from '@/components/ui/Input';
 import { Badge } from '@/components/ui/Badge';
 import { Toast, type ToastData } from '@/components/ui/Toast';
 import { MessageSkeleton } from '@/components/ui/Skeleton';
+import { DEFAULT_COORDS } from '@/lib/constants';
+import type { ChatMessage, OfflineQueueItem } from '@/types/domain';
 
 const MapComponent = dynamic(() => import('@/components/Map'), { ssr: false });
 
@@ -15,9 +17,9 @@ export default function VictimDashboard() {
   const [isOnline, setIsOnline] = useState(true);
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState<'IDLE' | 'SENT'>('IDLE');
-  const [messages, setMessages] = useState<any[]>([]);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [newMessage, setNewMessage] = useState('');
-  const [optimisticMessages, setOptimisticMessages] = useState<any[]>([]);
+  const [optimisticMessages, setOptimisticMessages] = useState<ChatMessage[]>([]);
   const [toast, setToast] = useState<ToastData | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [loadingMessages, setLoadingMessages] = useState(true);
@@ -34,8 +36,8 @@ export default function VictimDashboard() {
     disaster_type: 'Medical',
     injury_severity: 'Severe',
     battery_level: 45,
-    location_lat: 12.9716,
-    location_lng: 77.5946,
+    location_lat: DEFAULT_COORDS[0],
+    location_lng: DEFAULT_COORDS[1],
     group_size: 1,
     environment: 'Normal',
   });
@@ -118,6 +120,10 @@ export default function VictimDashboard() {
   const fetchMessages = useCallback(async () => {
     try {
       const res = await fetch('/api/messages/stream');
+      if (res.status === 401) {
+        router.push('/login');
+        return;
+      }
       const data = await res.json();
       if (data.messages) setMessages(data.messages);
     } catch {
@@ -125,41 +131,59 @@ export default function VictimDashboard() {
     } finally {
       setLoadingMessages(false);
     }
-  }, []);
+  }, [router]);
 
-  // Flush and synchronize offline queue
+  // Flush and synchronize offline queue with atomic item-by-item removal (Fix #4)
   const syncOfflineQueue = useCallback(async () => {
     try {
       const raw = localStorage.getItem('dl_offline_queue');
       if (!raw) return;
-      const queue: any[] = JSON.parse(raw);
-      if (queue.length === 0) return;
+      const queue: OfflineQueueItem[] = JSON.parse(raw);
+      if (!Array.isArray(queue) || queue.length === 0) return;
 
       showToast(`Synchronizing ${queue.length} offline emergency payload(s)...`, 'info');
 
       let syncedCount = 0;
-      for (const item of queue) {
-        if (item.type === 'SOS') {
-          const res = await fetch('/api/sos/create', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(item.data),
-          });
-          if (res.ok) syncedCount++;
-        } else if (item.type === 'MESSAGE') {
-          const res = await fetch('/api/messages/send', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(item.data),
-          });
-          if (res.ok) syncedCount++;
+      const remaining = [...queue];
+
+      while (remaining.length > 0) {
+        const item = remaining[0];
+        let ok = false;
+        try {
+          if (item.type === 'SOS') {
+            const res = await fetch('/api/sos/create', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(item.data),
+            });
+            ok = res.ok;
+          } else if (item.type === 'MESSAGE') {
+            const res = await fetch('/api/messages/send', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(item.data),
+            });
+            ok = res.ok;
+          }
+        } catch {
+          ok = false;
+        }
+
+        if (ok) {
+          syncedCount++;
+          remaining.shift();
+          localStorage.setItem('dl_offline_queue', JSON.stringify(remaining));
+          updateQueueCount();
+        } else {
+          // Cease loop on network error to retry remaining items on next reconnect
+          break;
         }
       }
 
-      localStorage.removeItem('dl_offline_queue');
-      updateQueueCount();
-      showToast(`Successfully synced ${syncedCount} queued emergency transmission(s)!`, 'success');
-      fetchMessages();
+      if (syncedCount > 0) {
+        showToast(`Successfully synced ${syncedCount} queued emergency transmission(s)!`, 'success');
+        fetchMessages();
+      }
     } catch (err) {
       console.error('Failed to sync offline queue:', err);
     }
@@ -308,12 +332,13 @@ export default function VictimDashboard() {
     if (!newMessage.trim()) return;
 
     const tempId = 'opt_' + Date.now();
-    const optimisticMsg = {
+    const optimisticMsg: ChatMessage = {
       id: tempId,
+      senderId: 'me',
       content: newMessage,
       senderRole: 'VICTIM',
       senderName: 'You',
-      timestamp: new Date().toISOString(),
+      createdAt: new Date().toISOString(),
       optimistic: true,
     };
 
@@ -349,18 +374,18 @@ export default function VictimDashboard() {
         fetchMessages();
       } else {
         setOptimisticMessages((prev) =>
-          prev.map((m) => (m.id === tempId ? { ...m, failed: true } : m))
+          prev.map((m) => (m.id === tempId ? { ...m, optimistic: false } : m))
         );
       }
     } catch {
       setOptimisticMessages((prev) =>
-        prev.map((m) => (m.id === tempId ? { ...m, failed: true } : m))
+        prev.map((m) => (m.id === tempId ? { ...m, optimistic: false } : m))
       );
     }
   };
 
   const allMessages = [...messages, ...optimisticMessages].sort(
-    (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+    (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
   );
 
   return (

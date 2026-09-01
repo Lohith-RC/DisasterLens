@@ -14,6 +14,7 @@ const COLORS = {
 } as const;
 
 import { calculateDistanceKm, calculateBearing } from '@/lib/geo';
+import { DEFAULT_COORDS } from '@/lib/constants';
 import type { FleetUnit } from '@/lib/sse';
 
 function MapUpdater({ center }: { center: [number, number] }) {
@@ -28,8 +29,12 @@ interface HeatmapLayerProps {
   points: [number, number, number][];
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type LHeat = any;
+interface LHeat {
+  setLatLngs: (pts: [number, number, number][]) => void;
+  redraw: () => void;
+  remove: () => void;
+  addTo: (map: L.Map) => void;
+}
 
 function HeatmapLayer({ points }: HeatmapLayerProps) {
   const map = useMap();
@@ -37,9 +42,11 @@ function HeatmapLayer({ points }: HeatmapLayerProps) {
 
   useEffect(() => {
     if (!map) return;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const heatFn = (L as any).heatLayer as (pts: [number, number, number][], opts: object) => LHeat;
-    if (!heatFn) return; // guard if plugin not loaded
+    const heatFn = (L as unknown as { heatLayer?: (pts: [number, number, number][], opts: object) => LHeat }).heatLayer;
+    if (!heatFn) {
+      console.warn('[Map] leaflet.heat plugin not loaded; heatmap overlay disabled.');
+      return;
+    }
 
     if (heatRef.current) {
       heatRef.current.setLatLngs(points);
@@ -92,7 +99,7 @@ interface MapProps {
 }
 
 export default function Map({ signals, activeSignalId, onMarkerClick, rescuerPos, fleet = [] }: MapProps) {
-  const defaultCenter: [number, number] = [12.9716, 77.5946];
+  const defaultCenter = DEFAULT_COORDS;
 
   let activeCenter = defaultCenter;
   let activeSignal: SignalItem | null = null;
