@@ -1,6 +1,6 @@
 import { getUserSession } from './auth';
 
-type EventType = 'signal_update' | 'message_update';
+type EventType = 'signal_update' | 'message_update' | 'fleet_update';
 
 interface SSEClient {
   id: string;
@@ -10,14 +10,39 @@ interface SSEClient {
   lastSeen: number;
 }
 
+export interface FleetUnit {
+  userId: string;
+  name: string;
+  lat: number;
+  lng: number;
+  updatedAt: number;
+}
+
 const clients = new Map<string, SSEClient>();
 const encoder = new TextEncoder();
 const PING_PAYLOAD = encoder.encode(': ping\n\n');
 
+// In-memory fleet registry: ephemeral rescuer GPS positions (no DB needed)
+const fleetRegistry = new Map<string, FleetUnit>();
+const FLEET_STALE_MS = 60_000;
+
+export function updateFleetPosition(unit: FleetUnit) {
+  fleetRegistry.set(unit.userId, unit);
+  // Purge stale units lazily on write
+  const now = Date.now();
+  for (const [id, u] of fleetRegistry) {
+    if (now - u.updatedAt > FLEET_STALE_MS) fleetRegistry.delete(id);
+  }
+}
+
+export function getFleetPositions(): FleetUnit[] {
+  const now = Date.now();
+  return [...fleetRegistry.values()].filter((u) => now - u.updatedAt <= FLEET_STALE_MS);
+}
+
 let sweepInterval: ReturnType<typeof setInterval> | null = null;
 function ensureSweep() {
   if (sweepInterval) return;
-  // Sweep every 25s: send keepalive ping and purge dead sockets
   sweepInterval = setInterval(() => {
     const now = Date.now();
     for (const [id, c] of clients) {
@@ -95,6 +120,13 @@ export async function handleSSEConnection() {
     start(controller) {
       createSSEStream(controller);
       addClient(clientId, { id: clientId, controller, role: session.role, userId: session.userId });
+
+      // Send current fleet snapshot to new connection
+      const fleet = getFleetPositions();
+      if (fleet.length > 0) {
+        const payload = `data: ${JSON.stringify({ type: 'fleet_update', fleet })}\n\n`;
+        try { controller.enqueue(encoder.encode(payload)); } catch {}
+      }
     },
     cancel() {
       removeClient(clientId);

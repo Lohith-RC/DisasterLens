@@ -13,6 +13,8 @@ import { TriageSimulatorModal } from '@/components/ui/TriageSimulatorModal';
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
 import { playNewSignalSound, playDispatchSound, playResolveSound, playMessageSound } from '@/lib/notifications';
 import { calculateDistanceKm, calculateBearing } from '@/lib/geo';
+import { announceTriage, announceDispatch, announceResolved } from '@/lib/voice';
+import type { FleetUnit } from '@/lib/sse';
 
 const MapComponent = dynamic(() => import('@/components/Map'), { ssr: false });
 
@@ -28,7 +30,10 @@ export default function RescuerDashboard() {
   const [loadingSignals, setLoadingSignals] = useState(true);
   const [loadingMessages, setLoadingMessages] = useState(true);
   const [isSseConnected, setIsSseConnected] = useState(false);
-  const [audioMuted, setAudioMuted] = useState(false);
+  const [audioMuted, setAudioMuted] = useState(() => {
+    if (typeof window !== 'undefined') return localStorage.getItem('dl_voice_muted') === 'true';
+    return false;
+  });
   const [simulatorOpen, setSimulatorOpen] = useState(false);
   const [resolvedTotal, setResolvedTotal] = useState(0);
 
@@ -38,6 +43,9 @@ export default function RescuerDashboard() {
 
   // Rescuer Unit Position
   const [rescuerPos, setRescuerPos] = useState<[number, number]>([12.9716, 77.5946]);
+  // Fleet registry: other rescuer units on the field
+  const [fleet, setFleet] = useState<FleetUnit[]>([]);
+  const rescuerName = useRef('Rescue Unit');
 
   const [confirmModal, setConfirmModal] = useState<{ type: 'dispatch' | 'resolve'; signalId: string } | null>(null);
 
@@ -48,19 +56,35 @@ export default function RescuerDashboard() {
     setToast({ msg, type });
   }, []);
 
-  // Detect Rescuer live GPS position on load
+  // Detect Rescuer live GPS position on load + start fleet beacon
   useEffect(() => {
-    if ('geolocation' in navigator) {
-      navigator.geolocation.getCurrentPosition(
-        (pos) => {
-          setRescuerPos([pos.coords.latitude, pos.coords.longitude]);
-        },
-        () => {
-          // Default to Bangalore command center if denied
-        },
-        { enableHighAccuracy: true, timeout: 5000 }
-      );
-    }
+    if (!('geolocation' in navigator)) return;
+
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const lat = pos.coords.latitude;
+        const lng = pos.coords.longitude;
+        setRescuerPos([lat, lng]);
+      },
+      () => { /* Default to Bangalore HQ if denied */ },
+      { enableHighAccuracy: true, timeout: 5000 }
+    );
+
+    // Fleet beacon: broadcast position every 10 seconds
+    const beaconInterval = setInterval(() => {
+      navigator.geolocation.getCurrentPosition((pos) => {
+        const lat = pos.coords.latitude;
+        const lng = pos.coords.longitude;
+        setRescuerPos([lat, lng]);
+        fetch('/api/rescuer/location', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ lat, lng, name: rescuerName.current }),
+        }).catch(() => {});
+      }, () => {}, { timeout: 4000 });
+    }, 10_000);
+
+    return () => clearInterval(beaconInterval);
   }, []);
 
   useEffect(() => {
@@ -81,6 +105,17 @@ export default function RescuerDashboard() {
       if (data.signals) {
         if (data.signals.length > previousSignalCount.current && previousSignalCount.current > 0 && !audioMuted) {
           playNewSignalSound();
+          // Announce the highest-priority new signal by voice
+          const newest = data.signals[0];
+          if (newest && newest.priority_score >= 60) {
+            const distKm = newest.location_lat && rescuerPos
+              ? calculateDistanceKm(rescuerPos[0], rescuerPos[1], newest.location_lat, newest.location_lng)
+              : null;
+            const bearing = newest.location_lat && rescuerPos
+              ? calculateBearing(rescuerPos[0], rescuerPos[1], newest.location_lat, newest.location_lng)
+              : null;
+            announceTriage('Critical', newest.disaster_type, distKm, bearing);
+          }
         }
         previousSignalCount.current = data.signals.length;
         setSignals(data.signals);
@@ -98,7 +133,8 @@ export default function RescuerDashboard() {
     } finally {
       setLoadingSignals(false);
     }
-  }, [activeSignal, audioMuted]);
+  }, [activeSignal, audioMuted, rescuerPos]);
+
 
   const fetchMessages = useCallback(async () => {
     try {
@@ -133,6 +169,12 @@ export default function RescuerDashboard() {
             fetchSignals();
           } else if (payload.type === 'message_update') {
             fetchMessages();
+          } else if (payload.type === 'fleet_update' && Array.isArray(payload.fleet)) {
+            setFleet((prev) => {
+              const map = new Map(prev.map((u) => [u.userId, u]));
+              for (const u of payload.fleet) map.set(u.userId, u);
+              return [...map.values()];
+            });
           }
         } catch {
           // ignore heartbeat or parse issue
@@ -207,6 +249,8 @@ export default function RescuerDashboard() {
       });
       if (res.ok) {
         if (!audioMuted) playDispatchSound();
+        const victimName = signals.find((s: any) => s.id === signalId)?.user?.name || 'victim';
+        if (!audioMuted) announceDispatch(victimName);
         await fetchSignals();
         await fetchMessages();
         showToast('Rescue unit dispatched! Victim notified.', 'success');
@@ -230,6 +274,7 @@ export default function RescuerDashboard() {
       });
       if (res.ok) {
         if (!audioMuted) playResolveSound();
+        if (!audioMuted) announceResolved();
         await fetchSignals();
         await fetchMessages();
         if (activeSignal?.id === signalId) setActiveSignal(null);
@@ -373,18 +418,31 @@ export default function RescuerDashboard() {
             <span className="hidden sm:inline">Triage Sandbox</span>
           </button>
 
-          {/* Audio Mute Toggle */}
+          {/* Voice & Audio Mute Toggle */}
           <button
-            onClick={() => setAudioMuted(!audioMuted)}
+            onClick={() => {
+              const next = !audioMuted;
+              setAudioMuted(next);
+              localStorage.setItem('dl_voice_muted', String(next));
+            }}
             className={`p-2 rounded-lg border text-xs transition ${
               audioMuted
                 ? 'bg-slate-800 text-slate-400 border-slate-700'
                 : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
             }`}
-            title={audioMuted ? 'Unmute Audio Cues' : 'Mute Audio Cues'}
+            title={audioMuted ? 'Unmute Voice & Audio Cues' : 'Mute Voice & Audio Cues'}
           >
-            <i className={`fa-solid ${audioMuted ? 'fa-volume-xmark' : 'fa-volume-high'}`}></i>
+            <i className={`fa-solid ${audioMuted ? 'fa-volume-xmark' : 'fa-tower-broadcast'}`}></i>
           </button>
+
+          {/* Fleet Counter */}
+          {fleet.length > 0 && (
+            <div className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-cyan-500/10 border border-cyan-500/30 text-xs font-mono text-cyan-400">
+              <i className="fa-solid fa-truck-medical"></i>
+              <span>{fleet.length} FLEET</span>
+            </div>
+          )}
+
 
           {/* Real-Time Stream Status */}
           <div className="flex items-center gap-2 px-2 py-1 rounded-lg bg-slate-900 border border-slate-800 text-xs">
@@ -554,6 +612,7 @@ export default function RescuerDashboard() {
             activeSignalId={activeSignal?.id}
             onMarkerClick={handleSelect}
             rescuerPos={rescuerPos}
+            fleet={fleet}
           />
         </section>
 
