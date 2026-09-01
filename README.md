@@ -23,7 +23,7 @@ Built by students from the Department of Computer Science & Engineering at **Kal
 
 ## ✨ Key Features
 
-### 🧠 Explainable AI Triage (MCDM Engine)
+### 🧠 Explainable AI Triage (MCDM Engine) & Interactive Sandbox
 Scores every incoming SOS transmission from **0 to 100** based on five mission-critical weighted dimensions:
 * **Battery Level (25%)**: Low phone battery elevates priority before imminent communication blackouts.
 * **Disaster Category (30%)**: Structural collapses and trapped individuals receive highest priority.
@@ -31,20 +31,25 @@ Scores every incoming SOS transmission from **0 to 100** based on five mission-c
 * **Group Size (15%)**: Trapped groups receive amplified priority based on casualty count.
 * **Environmental Hazards (10%)**: Darkness, heavy flooding/rain, or severe temperatures.
 
-> Rescuers receive human-readable explanations alongside priority levels (`CRITICAL`, `HIGH`, `MEDIUM`, `LOW`), giving them instantaneous situational context.
+> Includes an **Interactive MCDM Triage Sandbox** modal allowing commanders to test weight scenarios and review live explainable AI reasoning logs.
 
-### 🗺️ Live Tactical Dark Maps
-* Dark-themed interactive CartoDB / Leaflet maps.
-* Color-coded priority pins: 🔴 **Critical** | 🟠 **High** | 🟡 **Medium**.
-* Auto-pan, pulse animations on active alerts, and fly-to focus upon signal selection.
+### 🛰️ Real Hardware Telemetry & Victim Emergency Tools
+* **Live GPS Geolocation**: Direct browser GPS satellite locking with precision radius (`navigator.geolocation`).
+* **Device Battery Status API**: Real-time battery drain percentage and charging state telemetry (`navigator.getBattery`).
+* **Night Search-and-Rescue Strobe Beacon**: High-frequency visual strobe screen mode to guide aerial and ground search teams to trapped victims.
+* **Voice Speech-to-Text SOS**: One-tap emergency voice dictation for injured victims who cannot type.
 
-### 🔄 Dual Role-Based Portals
-* **Victim Dashboard (`/victim`)**: Simple, high-contrast SOS dispatch form, personal GPS location display, live status monitor, and two-way rescuer messaging.
-* **Rescuer Command Terminal (`/rescuer`)**: Real-time signal feed, tactical map, AI triage breakdown panel, rapid dispatch/resolution actions, and audio cues.
+### 🗺️ Tactical Radar Maps & Bearing Navigation
+* Dark-themed interactive CartoDB / Leaflet maps with rescuer unit position.
+* **Tactical Bearing Vector**: Dynamic animated polyline connecting rescuer unit to the victim with real-time distance (km), compass bearing (e.g. `042° NE`), and estimated ground ETA.
+* Color-coded priority pins: 🔴 **Critical (Animated Radar Pulse)** | 🟠 **High** | 🟡 **Medium**.
 
-### 📶 Offline Mesh Simulation
-* Toggleable offline simulation mode for disconnected environments.
-* Distress signals and chat messages queue locally and sync automatically when internet connectivity resumes.
+### ⚡ True Real-Time SSE Synchronization (Sub-100ms)
+* Both dashboards utilize **Server-Sent Events (`/api/events`)** for instant synchronization when signals are dispatched or resolved, eliminating aggressive polling latency.
+
+### 📶 Persistent Offline Mesh & Auto-Sync
+* Offline mode caches distress signals and tactical chat in persistent local storage (`localStorage`).
+* Automatically flushes and synchronizes all queued transmissions the moment network connectivity resumes.
 
 ### ⌨️ Tactical Keyboard Shortcuts & Audio Cues
 * Quick keyboard actions for dispatchers (`1`–`9` to select signals, `D` to dispatch, `R` to resolve).

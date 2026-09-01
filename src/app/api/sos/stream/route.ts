@@ -17,7 +17,11 @@ export async function GET() {
       orderBy: { priority_score: 'desc' },
     });
 
-    return NextResponse.json({ signals });
+    const resolvedCount = await db.sOS_Signal.count({
+      where: { status: 'RESOLVED' },
+    });
+
+    return NextResponse.json({ signals, resolvedCount });
   } catch {
     return NextResponse.json({ error: 'Failed to fetch signals' }, { status: 500 });
   }
